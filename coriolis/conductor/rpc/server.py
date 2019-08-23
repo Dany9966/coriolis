@@ -323,6 +323,11 @@ class ConductorServerEndpoint(object):
                 instance, constants.TASK_TYPE_GET_INSTANCE_INFO,
                 execution)
 
+            get_os_type_task = self._create_task(
+                instance,
+                constants.TASK_TYPE_GET_INSTANCE_OS_TYPE,
+                execution)
+
             validate_replica_source_inputs_task = self._create_task(
                 instance,
                 constants.TASK_TYPE_VALIDATE_REPLICA_SOURCE_INPUTS,
@@ -336,7 +341,8 @@ class ConductorServerEndpoint(object):
 
             depends_on = [
                 validate_replica_source_inputs_task.id,
-                validate_replica_destination_inputs_task.id]
+                validate_replica_destination_inputs_task.id,
+                get_os_type_task.id]
             if shutdown_instances:
                 shutdown_instance_task = self._create_task(
                     instance, constants.TASK_TYPE_SHUTDOWN_INSTANCE,

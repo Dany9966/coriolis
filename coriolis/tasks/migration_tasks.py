@@ -286,3 +286,12 @@ class ValidateMigrationDestinationInputsTask(base.TaskRunner):
             task_info["export_info"])
 
         return task_info
+
+
+class GetInstanceOSType(base.TaskRunner):
+    def run(self, ctxt, instance, origin, destination, task_info,
+            event_handler):
+        event_manager = events.EventManager(event_handler)
+        event_manager.progress_update("Identifying instance OS type.")
+        from remote_pdb import RemotePdb; RemotePdb('10.89.13.133', 4444).set_trace()
+        return task_info

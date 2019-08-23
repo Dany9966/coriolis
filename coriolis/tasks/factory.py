@@ -36,6 +36,8 @@ _TASKS_MAP = {
         osmorphing_tasks.DeleteOSMorphingResourcesTask,
     constants.TASK_TYPE_GET_INSTANCE_INFO:
         replica_tasks.GetInstanceInfoTask,
+    constants.TASK_TYPE_GET_INSTANCE_OS_TYPE:
+        migration_tasks.GetInstanceOSType,
     constants.TASK_TYPE_REPLICATE_DISKS:
         replica_tasks.ReplicateDisksTask,
     constants.TASK_TYPE_SHUTDOWN_INSTANCE:
