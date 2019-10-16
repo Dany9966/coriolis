@@ -413,8 +413,10 @@ class BaseLinuxOSMountTools(BaseSSHOSMountTools):
         volume_devs = self._get_volume_block_devices()
         for volume_dev in volume_devs:
             self._exec_cmd("sudo partx -v -a %s || true" % volume_dev)
-            dev_paths += self._exec_cmd(
-                "sudo ls %s*" % volume_dev).decode().split('\n')[:-1]
+            devs = self._exec_cmd(
+                "sudo ls -l %s*" % volume_dev).decode().split('\n')[:-1]
+            dev_paths += [d.split()[-1] for d in devs
+                          if re.match(r"^.*\d+$", d)]
 
         pvs = self._get_pvs()
         for vg_name in self._get_vgnames():
