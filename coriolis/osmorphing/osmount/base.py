@@ -477,7 +477,7 @@ class BaseLinuxOSMountTools(BaseSSHOSMountTools):
         for d in mounted_fs:
             if d.startswith(root_dir):
                 # mounted filesystem is a subfolder of our root_dir
-                self._exec_cmd('sudo umount %s' % d)
+                self._exec_cmd('sudo umount -l %s' % d)
 
     def set_proxy(self, proxy_settings):
         url = proxy_settings.get('url')
