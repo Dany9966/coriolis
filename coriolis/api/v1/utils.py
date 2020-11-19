@@ -85,3 +85,29 @@ def _build_keyerror_message(resource, method, key):
             resource, method_mapping[method], key)
 
     return msg
+
+
+def validate_instances_list_for_transfer(instances):
+    if not instances:
+        raise exception.InvalidInput(
+            "No instance identifiers provided for transfer action.")
+
+    if not isinstance(instances, list):
+        raise exception.InvalidInput(
+            "Instances must be a list. Got type %s: %s" % (
+                type(instances), instances))
+
+    appearances = {}
+    for instance in instances:
+        if instance in appearances:
+            appearances[instance] = appearances[instance] + 1
+        else:
+            appearances[instance] = 1
+    duplicates = {
+        inst: count for (inst, count) in appearances.items() if count > 1}
+    if duplicates:
+        raise exception.InvalidInput(
+            "Transfer action instances (%s) list contained duplicates: %s " % (
+                instances, duplicates))
+
+    return instances
