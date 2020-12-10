@@ -4,6 +4,7 @@
 import os
 from io import StringIO
 
+from oslo_log import log as logging
 import yaml
 
 from coriolis import exception
@@ -11,6 +12,7 @@ from coriolis import utils
 from coriolis.osmorphing import base
 from coriolis.osmorphing.osdetect import debian as debian_osdetect
 
+LOG = logging.getLogger(__name__)
 
 DEBIAN_DISTRO_IDENTIFIER = debian_osdetect.DEBIAN_DISTRO_IDENTIFIER
 
@@ -93,20 +95,104 @@ class BaseDebianMorphingTools(base.BaseLinuxOSMorphingTools):
             }
         return yaml.dump(cfg, default_flow_style=False)
 
+    def _get_interfaces_info(self, interfaces_path, mac_addresses):
+        interfaces = dict()
+        paths = [interfaces_path]
+
+        def _parse_iface_file(interface_file, mac_addresses):
+            nonlocal interfaces
+            nonlocal paths
+            curr_iface = None
+            curr_mac_address = None
+            interfaces_contents = self._read_file(interface_file).decode()
+            LOG.debug(
+                "Fetched %s contents: %s", interface_file, interfaces_contents)
+            for line in interfaces_contents.splitlines():
+                if line.strip().startswith("iface"):
+                    words = line.split()
+                    if len(words) > 1:
+                        curr_iface = words[1]
+                elif line.strip().startswith("hwaddress ether"):
+                    words = line.split()
+                    if len(words) > 2:
+                        if not curr_iface:
+                            LOG.warn("Found MAC address %s does not belong to "
+                                     "any interface stanza. Skipping.",
+                                     words[2])
+                            continue
+
+                        curr_mac_address = words[2]
+                        if curr_mac_address.lower() not in mac_addresses:
+                            LOG.warn(
+                                "Found MAC address %s for interface '%s' is "
+                                "not one of the MAC addresses fetched by "
+                                "Coriolis for this instance: %s",
+                                curr_mac_address, curr_iface, mac_addresses)
+                        interfaces[curr_iface] = curr_mac_address
+                elif line.strip().startswith("source"):
+                    words = line.split()
+                    if len(words) > 1:
+                        source_path = words[2]
+                        paths += self._exec_cmd_chroot(
+                            'ls -1 %s' % source_path).splitlines()
+
+        while paths:
+            _parse_iface_file(paths[0], mac_addresses)
+            paths.pop(0)
+
+        return interfaces
+
+    def _get_netplan_info(self, netplan_base_path, mac_addresses):
+        interfaces = dict()
+        netplan_cfgs = [n for n in self._list_dir(netplan_base_path)
+                        if n.endswith(".yaml") or n.endswith(".yml")]
+        for cfg in netplan_cfgs:
+            cfg_path = "%s/%s" % (netplan_base_path, cfg)
+            try:
+                contents = yaml.safe_load(self._read_file(cfg_path).decode())
+                ifaces = contents.get('network', {}).get('ethernets', {})
+                for iface, net_cfg in ifaces.items():
+                    mac_address = net_cfg.get('match', {}).get('macaddress')
+                    if mac_address:
+                        if mac_address not in mac_addresses:
+                            LOG.warn(
+                                "Found MAC address %s for interface '%s' is "
+                                "not one of the MAC addresses fetched by "
+                                "Coriolis for this instance: %s",
+                                mac_address, iface, mac_addresses)
+                        interfaces[iface] = mac_address
+            except yaml.YAMLError:
+                LOG.warn(
+                    "Could not parse netplan configuration '%s'. Invalid YAML "
+                    "file: %s", cfg_path, utils.get_exception_details())
+
+        return interfaces
+
     def set_net_config(self, nics_info, dhcp):
+        ifaces_file = "/etc/network/interfaces"
+        netplan_base = "etc/netplan"
+
         if not dhcp:
+            mac_addresses = [nic.get('mac_address') for nic in nics_info]
+
+            if self._test_path(ifaces_file):
+                net_ifaces_info = self._get_interfaces_info(
+                    ifaces_file, mac_addresses)
+            elif self._test_path(netplan_base):
+                net_ifaces_info = self._get_netplan_info(
+                    netplan_base, mac_addresses)
+
+            self._add_net_udev_rules(net_ifaces_info.items())
             return
 
         self.disable_predictable_nic_names()
-        if self._test_path("etc/network"):
-            ifaces_file = "etc/network/interfaces"
+        if self._test_path("/etc/network"):
             contents = self._compose_interfaces_config(nics_info)
             if self._test_path(ifaces_file):
                 self._exec_cmd_chroot(
                     "cp %s %s.bak" % (ifaces_file, ifaces_file))
             self._write_file_sudo(ifaces_file, contents)
 
-        netplan_base = "etc/netplan"
         if self._test_path(netplan_base):
             curr_files = self._list_dir(netplan_base)
             for cnf in curr_files:

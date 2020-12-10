@@ -342,3 +342,10 @@ class BaseLinuxOSMorphingTools(BaseOSMorphingTools):
                 "touch /.autorelabel")
         except Exception as err:
             LOG.warning("Failed to set autorelabel: %r" % err)
+
+    def _add_net_udev_rules(self, net_ifaces_info):
+        udev_file = "etc/udev/rules.d/70-persistent-net.rules"
+        if not self._test_path(udev_file):
+            if net_ifaces_info:
+                content = utils.get_udev_net_rules(net_ifaces_info)
+                self._write_file_sudo(udev_file, content)
