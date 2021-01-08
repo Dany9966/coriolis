@@ -180,14 +180,15 @@ class BaseBackupWriterImpl(with_metaclass(abc.ABCMeta)):
 
 class BaseBackupWriter(with_metaclass(abc.ABCMeta)):
     @abc.abstractmethod
-    def _get_impl(self, path, disk_id):
+    def _get_impl(self, path, disk_id, compress_transfer=None):
         pass
 
     @contextlib.contextmanager
-    def open(self, path, disk_id):
+    def open(self, path, disk_id, compress_transfer=None):
         impl = None
         try:
-            impl = self._get_impl(path, disk_id)
+            impl = self._get_impl(
+                path, disk_id, compress_transfer=compress_transfer)
             impl._open()
             yield impl
         except Exception as ex:
@@ -229,7 +230,7 @@ class FileBackupWriterImpl(BaseBackupWriterImpl):
 
 
 class FileBackupWriter(BaseBackupWriter):
-    def _get_impl(self, path, disk_id):
+    def _get_impl(self, path, disk_id, compress_transfer=None):
         return FileBackupWriterImpl(path, disk_id)
 
     @classmethod
@@ -453,7 +454,7 @@ class SSHBackupWriter(BaseBackupWriter):
 
         return cls(ip, port, username, pkey, password, volumes_info)
 
-    def _get_impl(self, path, disk_id):
+    def _get_impl(self, path, disk_id, compress_transfer=None):
         ssh = self._connect_ssh()
         _disable_lvm2_lvmetad(ssh)
 
@@ -472,7 +473,8 @@ class SSHBackupWriter(BaseBackupWriter):
             raise exception.CoriolisException(base_msg)
 
         path = matching_devs[0]["volume_dev"]
-        impl = SSHBackupWriterImpl(path, disk_id)
+        impl = SSHBackupWriterImpl(
+            path, disk_id, compress_transfer=compress_transfer)
 
         self._copy_helper_cmd(ssh)
         impl._set_ssh_client(ssh)
@@ -986,7 +988,7 @@ class HTTPBackupWriter(BaseBackupWriter):
         }
         return self._cert_paths
 
-    def _get_impl(self, path, disk_id):
+    def _get_impl(self, path, disk_id, compress_transfer=None):
         cert_paths = self._write_cert_files()
         self._wait_for_conn()
 
@@ -995,7 +997,7 @@ class HTTPBackupWriter(BaseBackupWriter):
         impl = HTTPBackupWriterImpl(
             path, disk_id,
             compressor_count=self._compressor_count,
-            compress_transfer=CONF.compress_transfers)
+            compress_transfer=compress_transfer)
         impl._set_info({
             "ip": self._ip,
             "port": self._writer_port,
