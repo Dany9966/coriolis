@@ -164,7 +164,9 @@ class ConductorClient(rpc.BaseRPCClient):
                                  destination_minion_pool_id,
                                  instance_osmorphing_minion_pool_mappings,
                                  source_environment, destination_environment,
-                                 instances, network_map, storage_mappings,
+                                 source_minion_options,
+                                 destination_minion_options, instances,
+                                 network_map, storage_mappings,
                                  notes=None):
         return self._call(
             ctxt, 'create_instances_replica',
@@ -179,7 +181,9 @@ class ConductorClient(rpc.BaseRPCClient):
             notes=notes,
             network_map=network_map,
             storage_mappings=storage_mappings,
-            source_environment=source_environment)
+            source_environment=source_environment,
+            source_minion_options=source_minion_options,
+            destination_minion_options=destination_minion_options)
 
     def get_replicas(self, ctxt, include_tasks_executions=False):
         return self._call(
@@ -213,6 +217,7 @@ class ConductorClient(rpc.BaseRPCClient):
                           destination_minion_pool_id,
                           instance_osmorphing_minion_pool_mappings,
                           source_environment, destination_environment,
+                          source_minion_options, destination_minion_options,
                           instances, network_map, storage_mappings,
                           replication_count, shutdown_instances=False,
                           notes=None, skip_os_morphing=False,
@@ -234,6 +239,8 @@ class ConductorClient(rpc.BaseRPCClient):
             network_map=network_map,
             storage_mappings=storage_mappings,
             source_environment=source_environment,
+            source_minion_options=source_minion_options,
+            destination_minion_options=destination_minion_options,
             user_scripts=user_scripts)
 
     def deploy_replica_instances(self, ctxt, replica_id,

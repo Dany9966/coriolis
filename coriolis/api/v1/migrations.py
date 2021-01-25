@@ -87,6 +87,15 @@ class MigrationController(api_wsgi.Controller):
         self._endpoints_api.validate_source_environment(
             context, origin_endpoint_id, source_environment)
 
+        source_minion_options = migration.get('source_minion_options', {})
+        self._endpoints_api.validate_endpoint_source_minion_pool_options(
+            context, origin_endpoint_id, source_minion_options)
+
+        destination_minion_options = migration.get(
+            'destination_minion_options', {})
+        self._endpoints_api.validate_endpoint_destination_minion_pool_options(
+            context, destination_endpoint_id, destination_minion_options)
+
         network_map = migration.get("network_map", {})
         api_utils.validate_network_map(network_map)
 
@@ -110,7 +119,8 @@ class MigrationController(api_wsgi.Controller):
         return (origin_endpoint_id, destination_endpoint_id,
                 origin_minion_pool_id, destination_minion_pool_id,
                 instance_osmorphing_minion_pool_mappings, source_environment,
-                destination_environment, instances, notes,
+                destination_environment, source_minion_options,
+                destination_minion_options, instances, notes,
                 skip_os_morphing, replication_count,
                 shutdown_instances, network_map, storage_mappings)
 
@@ -141,6 +151,8 @@ class MigrationController(api_wsgi.Controller):
              instance_osmorphing_minion_pool_mappings,
              source_environment,
              destination_environment,
+             source_minion_options,
+             destination_minion_options,
              instances,
              notes,
              skip_os_morphing,
@@ -153,7 +165,8 @@ class MigrationController(api_wsgi.Controller):
                 context, origin_endpoint_id, destination_endpoint_id,
                 origin_minion_pool_id, destination_minion_pool_id,
                 instance_osmorphing_minion_pool_mappings,
-                source_environment, destination_environment, instances,
+                source_environment, destination_environment,
+                source_minion_options, destination_minion_options, instances,
                 network_map, storage_mappings, replication_count,
                 shutdown_instances, notes=notes,
                 skip_os_morphing=skip_os_morphing,

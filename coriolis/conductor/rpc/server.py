@@ -1155,7 +1155,9 @@ class ConductorServerEndpoint(object):
                                  destination_minion_pool_id,
                                  instance_osmorphing_minion_pool_mappings,
                                  source_environment,
-                                 destination_environment, instances,
+                                 destination_environment,
+                                 source_minion_options,
+                                 destination_minion_options, instances,
                                  network_map, storage_mappings, notes=None):
         origin_endpoint = self.get_endpoint(ctxt, origin_endpoint_id)
         destination_endpoint = self.get_endpoint(ctxt, destination_endpoint_id)
@@ -1170,6 +1172,8 @@ class ConductorServerEndpoint(object):
         replica.destination_minion_pool_id = destination_minion_pool_id
         replica.destination_environment = destination_environment
         replica.source_environment = source_environment
+        replica.source_minion_options = source_minion_options
+        replica.destination_minion_options = destination_minion_options
         replica.last_execution_status = constants.EXECUTION_STATUS_UNEXECUTED
         replica.instances = instances
         replica.executions = []
@@ -1692,6 +1696,7 @@ class ConductorServerEndpoint(object):
                           destination_minion_pool_id,
                           instance_osmorphing_minion_pool_mappings,
                           source_environment, destination_environment,
+                          source_minion_options, destination_minion_options,
                           instances, network_map, storage_mappings,
                           replication_count, shutdown_instances=False,
                           notes=None, skip_os_morphing=False, user_scripts=None):
@@ -1709,6 +1714,8 @@ class ConductorServerEndpoint(object):
         migration.destination_endpoint_id = destination_endpoint_id
         migration.destination_environment = destination_environment
         migration.source_environment = source_environment
+        migration.source_minion_options = source_minion_options
+        migration.destination_minion_options = destination_minion_options
         migration.network_map = network_map
         migration.storage_mappings = storage_mappings
         migration.last_execution_status = constants.EXECUTION_STATUS_UNEXECUTED

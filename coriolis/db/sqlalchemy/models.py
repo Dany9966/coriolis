@@ -274,6 +274,8 @@ class BaseTransferAction(BASE, models.TimestampMixin, models.ModelBase,
     destination_minion_pool_id = sqlalchemy.Column(
         sqlalchemy.String(36),
         sqlalchemy.ForeignKey('minion_pool.id'), nullable=True)
+    source_minion_options = sqlalchemy.Column(types.Json, nullable=True)
+    destination_minion_options = sqlalchemy.Column(types.Json, nullable=True)
     instance_osmorphing_minion_pool_mappings = sqlalchemy.Column(
         types.Json, nullable=False, default=lambda: {})
 
@@ -307,7 +309,9 @@ class BaseTransferAction(BASE, models.TimestampMixin, models.ModelBase,
             "origin_minion_pool_id": self.origin_minion_pool_id,
             "destination_minion_pool_id": self.destination_minion_pool_id,
             "instance_osmorphing_minion_pool_mappings":
-                self.instance_osmorphing_minion_pool_mappings
+                self.instance_osmorphing_minion_pool_mappings,
+            "source_minion_options": self.source_minion_options,
+            "destination_minion_options": self.destination_minion_options,
         }
         if include_executions:
             for ex in self.executions:

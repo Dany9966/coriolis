@@ -85,6 +85,14 @@ class ReplicaController(api_wsgi.Controller):
                 "provided for instances (%s) which are not part of the "
                 "Replicas's declared instances (%s)" % (extras, instances))
 
+        source_minion_options = replica.get('source_minion_options', {})
+        self._endpoints_api.validate_endpoint_source_minion_pool_options(
+            context, origin_endpoint_id, source_minion_options)
+        destination_minion_options = replica.get(
+            'destination_minion_options', {})
+        self._endpoints_api.validate_endpoint_destination_minion_pool_options(
+            context, destination_endpoint_id, destination_minion_options)
+
         # TODO(aznashwan): until the provider plugin interface is updated
         # to have separate 'network_map' and 'storage_mappings' fields,
         # we add them as part of the destination environment:
@@ -107,7 +115,8 @@ class ReplicaController(api_wsgi.Controller):
                 source_environment, destination_environment, instances,
                 network_map, storage_mappings, notes,
                 origin_minion_pool_id, destination_minion_pool_id,
-                instance_osmorphing_minion_pool_mappings)
+                instance_osmorphing_minion_pool_mappings,
+                source_minion_options, destination_minion_options)
 
     def create(self, req, body):
         context = req.environ["coriolis.context"]
@@ -117,14 +126,16 @@ class ReplicaController(api_wsgi.Controller):
          source_environment, destination_environment, instances, network_map,
          storage_mappings, notes, origin_minion_pool_id,
          destination_minion_pool_id,
-         instance_osmorphing_minion_pool_mappings) = (
+         instance_osmorphing_minion_pool_mappings, source_minion_options,
+         destination_minion_options) = (
             self._validate_create_body(context, body))
 
         return replica_view.single(req, self._replica_api.create(
             context, origin_endpoint_id, destination_endpoint_id,
             origin_minion_pool_id, destination_minion_pool_id,
             instance_osmorphing_minion_pool_mappings, source_environment,
-            destination_environment, instances, network_map,
+            destination_environment, source_minion_options,
+            destination_minion_options, instances, network_map,
             storage_mappings, notes))
 
     def delete(self, req, id):
@@ -186,6 +197,7 @@ class ReplicaController(api_wsgi.Controller):
         updated values (preferring the updated values where needed, but using
         `.update()` on dicts):
         "source_environment", "destination_environment", "network_map", "notes"
+        "source_minion_options", "destination_minion_options"
         Does special merging for the "storage_mappings"
         Returns a dict with the merged values (or at least all if the keys
         having a default value of {})
@@ -195,7 +207,8 @@ class ReplicaController(api_wsgi.Controller):
         # merging of container types (ex: lists, dicts)
         for option in [
                 "source_environment", "destination_environment",
-                "network_map"]:
+                "network_map", "source_minion_options",
+                "destination_minion_options"]:
             before = replica.get(option)
             after = updated_values.get(option)
             # NOTE: for Replicas created before the separation of these fields
@@ -280,6 +293,14 @@ class ReplicaController(api_wsgi.Controller):
         self._endpoints_api.validate_target_environment(
             context, replica_destination_endpoint_id,
             destination_environment)
+
+        self._endpoints_api.validate_endpoint_source_minion_pool_options(
+            context, replica_origin_endpoint_id,
+            merged_body['source_minion_options'])
+
+        self._endpoints_api.validate_endpoint_destination_minion_pool_options(
+            context, replica_destination_endpoint_id,
+            merged_body['destination_minion_options'])
 
         api_utils.validate_network_map(merged_body["network_map"])
 
