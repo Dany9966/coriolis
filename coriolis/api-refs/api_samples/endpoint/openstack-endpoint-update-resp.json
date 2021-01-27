@@ -29,10 +29,19 @@
       "user_domain_id": "default",
       "allow_untrusted": false,
       "identity_api_version": 3,
-      "neutron_interface_name": "publicURL"
+      "neutron_interface_name": "publicURL",
+      "ceph_options": {
+        "ceph_conf_file": "/etc/ceph/ceph.conf",
+        "ceph_username": "root",
+        "ceph_keyring_file": "/home/ubuntu/keyring_file",
+        "ceph_pool_name": "pool_name",
+        "ceph_cluster_name": "cluster_name",
+        "ceph_connection_timeout": "1200"
+      }
     },
     "type": "openstack",
     "name": "Updated Name",
-    "description": "Updated description"
+    "description": "Updated description",
+    "mapped_regions": ["public"]
   }
 }
