@@ -9,10 +9,10 @@ import uuid
 
 from oslo_log import log as logging
 from six import with_metaclass
+import yaml
 
 from coriolis import exception
 from coriolis import utils
-from coriolis.osmorphing.osdetect import base as base_os_detect
 
 
 LOG = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class BaseOSMorphingTools(object, with_metaclass(abc.ABCMeta)):
 
     def __init__(
             self, conn, os_root_dir, os_root_device, hypervisor,
-            event_manager, detected_os_info):
+            event_manager, detected_os_info, osmorphing_info):
 
         self.check_detected_os_info_parameters(detected_os_info)
 
@@ -41,6 +41,7 @@ class BaseOSMorphingTools(object, with_metaclass(abc.ABCMeta)):
         self._event_manager = event_manager
         self._detected_os_info = detected_os_info
         self._environment = {}
+        self._osmorphing_info = osmorphing_info
 
     @abc.abstractclassmethod
     def get_required_detected_os_info_fields(cls):
@@ -119,10 +120,10 @@ class BaseLinuxOSMorphingTools(BaseOSMorphingTools):
     _packages = {}
 
     def __init__(self, conn, os_root_dir, os_root_dev, hypervisor,
-                 event_manager, detected_os_info):
+                 event_manager, detected_os_info, osmorphing_info):
         super(BaseLinuxOSMorphingTools, self).__init__(
             conn, os_root_dir, os_root_dev, hypervisor, event_manager,
-            detected_os_info)
+            detected_os_info, osmorphing_info)
         self._ssh = conn
 
     @classmethod
@@ -342,3 +343,16 @@ class BaseLinuxOSMorphingTools(BaseOSMorphingTools):
                 "touch /.autorelabel")
         except Exception as err:
             LOG.warning("Failed to set autorelabel: %r" % err)
+
+    def _retain_user_credentials(self):
+        cloud_cfg_path = "/etc/cloud/cloud.cfg"
+        self._exec_cmd_chroot(
+            "cp %s %s.bak" % (cloud_cfg_path, cloud_cfg_path))
+
+        cloud_cfg = yaml.load(self._read_file(cloud_cfg_path),
+                              Loader=yaml.SafeLoader)
+
+        cloud_cfg['disable_root'] = 0
+        cloud_cfg['ssh_pwauth'] = 1
+        new_cloud_cfg = yaml.dump(cloud_cfg)
+        self._write_file(cloud_cfg_path, new_cloud_cfg)
