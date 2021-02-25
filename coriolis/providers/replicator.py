@@ -795,27 +795,27 @@ class Replicator(object):
                 self._event_manager.progress_update(
                     "No new chunks to replicate for disk \"%s\" (%s)" % (
                         volume['disk_id'], devName))
+            else:
+                size = self._get_size_from_chunks(chunks)
 
-            size = self._get_size_from_chunks(chunks)
+                msg = (
+                    "Replicating changed data for disk \"%s\" (device \"%s\", "
+                    "written chunks: %.2f MB)") % (
+                        volume["disk_id"], devName, size)
+                perc_step = self._event_manager.add_percentage_step(
+                    msg, len(chunks))
 
-            msg = (
-                "Replicating changed data for disk \"%s\" (device \"%s\", "
-                "written chunks: %.2f MB)") % (
-                    volume["disk_id"], devName, size)
-            perc_step = self._event_manager.add_percentage_step(
-                msg, len(chunks))
-
-            total = 0
-            with backup_writer.open("", volume['disk_id']) as destination:
-                for chunk in chunks:
-                    offset = int(chunk["offset"])
-                    destination.seek(offset)
-                    data = self._cli.download_chunk(devName, chunk)
-                    destination.write(data)
-                    total += 1
-                    self._event_manager.set_percentage_step(
-                        perc_step, total)
-            dst_vol["replica_state"] = state_for_vol
+                total = 0
+                with backup_writer.open("", volume['disk_id']) as destination:
+                    for chunk in chunks:
+                        offset = int(chunk["offset"])
+                        destination.seek(offset)
+                        data = self._cli.download_chunk(devName, chunk)
+                        destination.write(data)
+                        total += 1
+                        self._event_manager.set_percentage_step(
+                            perc_step, total)
+                dst_vol["replica_state"] = state_for_vol
 
         self._repl_state = curr_state
         return self._repl_state
