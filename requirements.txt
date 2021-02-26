@@ -10,7 +10,7 @@ oslo.context>=2.19.1
 oslo.db
 oslo.i18n
 oslo.log
-oslo.messaging
+oslo.messaging<=12.6.0
 oslo.middleware
 oslo.policy
 oslo.serialization
