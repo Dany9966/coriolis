@@ -40,3 +40,11 @@ def get_secret(ctxt, secret_ref):
         raise
 
     return json.loads(payload)
+
+
+def get_secret_connection_info(ctxt, connection_info):
+    secret_ref = connection_info.get("secret_ref")
+    if secret_ref:
+        LOG.info("Retrieving connection info from secret: %s", secret_ref)
+        connection_info = get_secret(ctxt, secret_ref)
+    return connection_info

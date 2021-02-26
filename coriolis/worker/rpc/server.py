@@ -24,6 +24,7 @@ from coriolis import exception
 from coriolis.minion_manager.rpc import client as rpc_minion_manager_client
 from coriolis.providers import factory as providers_factory
 from coriolis import schemas
+from coriolis import secrets
 from coriolis import service
 from coriolis.tasks import factory as task_runners_factory
 from coriolis import utils
@@ -328,7 +329,7 @@ class WorkerServerEndpoint(object):
         export_provider = providers_factory.get_provider(
             platform_name, constants.PROVIDER_TYPE_ENDPOINT_INSTANCES, None)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         instances_info = export_provider.get_instances(
@@ -346,7 +347,7 @@ class WorkerServerEndpoint(object):
         provider = providers_factory.get_provider(
             platform_name, constants.PROVIDER_TYPE_ENDPOINT_INSTANCES, None)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         instance_info = provider.get_instance(
@@ -369,7 +370,7 @@ class WorkerServerEndpoint(object):
                 "Provider plugin for platform '%s' does not support listing "
                 "destination environment options." % platform_name)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         options = provider.get_target_environment_options(
@@ -391,7 +392,7 @@ class WorkerServerEndpoint(object):
                 "Provider plugin for platform '%s' does not support source "
                 "minion pool creation or management." % platform_name)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         options = provider.get_minion_pool_options(
@@ -416,7 +417,7 @@ class WorkerServerEndpoint(object):
                 "destination minion pool creation or management." % (
                     platform_name))
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         options = provider.get_minion_pool_options(
@@ -440,7 +441,7 @@ class WorkerServerEndpoint(object):
                 "Provider plugin for platform '%s' does not support listing "
                 "source environment options." % platform_name)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         options = provider.get_source_environment_options(
@@ -456,7 +457,7 @@ class WorkerServerEndpoint(object):
         provider = providers_factory.get_provider(
             platform_name, constants.PROVIDER_TYPE_ENDPOINT_NETWORKS, None)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         networks_info = provider.get_networks(
@@ -471,7 +472,7 @@ class WorkerServerEndpoint(object):
         provider = providers_factory.get_provider(
             platform_name, constants.PROVIDER_TYPE_ENDPOINT_STORAGE, None)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         storage = provider.get_storage(
@@ -558,7 +559,7 @@ class WorkerServerEndpoint(object):
         provider = providers_factory.get_provider(
             platform_name, constants.PROVIDER_TYPE_ENDPOINT, None)
 
-        secret_connection_info = utils.get_secret_connection_info(
+        secret_connection_info = secrets.get_secret_connection_info(
             ctxt, connection_info)
 
         is_valid = True

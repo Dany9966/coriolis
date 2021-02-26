@@ -10,6 +10,7 @@ from six import with_metaclass
 
 from coriolis import constants
 from coriolis import exception
+from coriolis import secrets
 from coriolis import utils
 from coriolis.providers import factory as providers_factory
 
@@ -149,7 +150,7 @@ class TaskRunner(with_metaclass(abc.ABCMeta)):
 
 def get_connection_info(ctxt, data):
     connection_info = data.get("connection_info") or {}
-    return utils.get_secret_connection_info(ctxt, connection_info)
+    return secrets.get_secret_connection_info(ctxt, connection_info)
 
 
 def marshal_migr_conn_info(
