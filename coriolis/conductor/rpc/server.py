@@ -1296,6 +1296,7 @@ class ConductorServerEndpoint(object):
         migration.destination_environment = dest_env
         migration.source_environment = replica.source_environment
         migration.network_map = replica.network_map
+        migration.notes = replica.notes
         migration.storage_mappings = replica.storage_mappings
         migration.instances = instances
         migration.replica = replica
