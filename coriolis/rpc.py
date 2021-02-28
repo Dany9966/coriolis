@@ -93,6 +93,7 @@ class BaseRPCClient(object):
             if transport:
                 try:
                     transport.cleanup()
+                    import gc; gc.collect()
                 except (Exception, KeyboardInterrupt):
                     LOG.warn(
                         "Exception occurred while cleaning up transport for "
