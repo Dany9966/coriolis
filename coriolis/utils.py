@@ -46,6 +46,10 @@ opts = [
     cfg.StrOpt('qemu_img_path',
                default='qemu-img',
                help='The path of the qemu-img tool.'),
+    cfg.IntOpt('ssh_channel_timeout',
+               default=1800,
+               help='Number of seconds to wait for a pending SSH command '
+                    'before the socket times out.')
 ]
 
 CONF = cfg.CONF
@@ -293,8 +297,9 @@ def list_ssh_dir(ssh, remote_path):
 
 
 @retry_on_error()
-def exec_ssh_cmd(ssh, cmd, environment=None, get_pty=False):
+def exec_ssh_cmd(ssh, cmd, environment=None, get_pty=False, timeout=None):
     remote_str = "<undeterminable>"
+    timeout = timeout or CONF.ssh_channel_timeout
     try:
         remote_str = "%s:%s" % ssh.get_transport().sock.getpeername()
     except (ValueError, AttributeError, TypeError):
@@ -306,7 +311,7 @@ def exec_ssh_cmd(ssh, cmd, environment=None, get_pty=False):
         "environment %s: '%s'", remote_str, environment, cmd)
 
     _, stdout, stderr = ssh.exec_command(
-        cmd, environment=environment, get_pty=get_pty)
+        cmd, environment=environment, get_pty=get_pty, timeout=float(timeout))
     std_out = stdout.read()
     std_err = stderr.read()
     exit_code = stdout.channel.recv_exit_status()
@@ -321,9 +326,11 @@ def exec_ssh_cmd(ssh, cmd, environment=None, get_pty=False):
     return std_out.replace(b'\r\n', b'\n').replace(b'\n\r', b'\n')
 
 
-def exec_ssh_cmd_chroot(ssh, chroot_dir, cmd, environment=None, get_pty=False):
+def exec_ssh_cmd_chroot(ssh, chroot_dir, cmd, environment=None, get_pty=False,
+                        timeout=None):
     return exec_ssh_cmd(ssh, "sudo -E chroot %s %s" % (chroot_dir, cmd),
-                        environment=environment, get_pty=get_pty)
+                        environment=environment, get_pty=get_pty,
+                        timeout=timeout)
 
 
 def check_fs(ssh, fs_type, dev_path):

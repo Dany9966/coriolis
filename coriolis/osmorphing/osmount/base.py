@@ -94,9 +94,9 @@ class BaseSSHOSMountTools(BaseOSMountTools):
     def _allow_ssh_env_vars(self):
         pass
 
-    def _exec_cmd(self, cmd):
+    def _exec_cmd(self, cmd, timeout=None):
         return utils.exec_ssh_cmd(self._ssh, cmd, self._environment,
-                                  get_pty=True)
+                                  get_pty=True, timeout=timeout)
 
     def get_connection(self):
         return self._ssh

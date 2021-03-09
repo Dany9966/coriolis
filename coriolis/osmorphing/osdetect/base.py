@@ -74,11 +74,12 @@ class BaseLinuxOSDetectTools(BaseOSDetectTools):
         full_path = os.path.join(self._os_root_dir, chroot_path)
         return utils.test_ssh_path(self._conn, full_path)
 
-    def _exec_cmd(self, cmd):
+    def _exec_cmd(self, cmd, timeout=None):
         return utils.exec_ssh_cmd(
-            self._conn, cmd, environment=self._environment, get_pty=True)
+            self._conn, cmd, environment=self._environment, get_pty=True,
+            timeout=timeout)
 
-    def _exec_cmd_chroot(self, cmd):
+    def _exec_cmd_chroot(self, cmd, timeout=None):
         return utils.exec_ssh_cmd_chroot(
             self._conn, self._os_root_dir, cmd,
-            environment=self._environment, get_pty=True)
+            environment=self._environment, get_pty=True, timeout=timeout)

@@ -256,14 +256,15 @@ class BaseLinuxOSMorphingTools(BaseOSMorphingTools):
         path = os.path.join(self._os_root_dir, chroot_path)
         return utils.list_ssh_dir(self._ssh, path)
 
-    def _exec_cmd(self, cmd):
+    def _exec_cmd(self, cmd, timeout=None):
         return utils.exec_ssh_cmd(
-            self._ssh, cmd, environment=self._environment, get_pty=True)
+            self._ssh, cmd, environment=self._environment, get_pty=True,
+            timeout=timeout)
 
-    def _exec_cmd_chroot(self, cmd):
+    def _exec_cmd_chroot(self, cmd, timeout=None):
         return utils.exec_ssh_cmd_chroot(
             self._ssh, self._os_root_dir, cmd,
-            environment=self._environment, get_pty=True)
+            environment=self._environment, get_pty=True, timeout=timeout)
 
     def _check_user_exists(self, username):
         try:
