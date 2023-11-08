@@ -1,24 +1,14 @@
 # Copyright 2017 Cloudbase Solutions Srl
 # All Rights Reserved.
 
-import itertools
+from coriolis.api.v1.views import utils as view_utils
 
 
-def format_schedule(req, schedule, keys=None):
-    def transform(key, value):
-        if keys and key not in keys:
-            return
-        yield (key, value)
-
-    return dict(itertools.chain.from_iterable(
-        transform(k, v) for k, v in schedule.items()))
+def single(schedule):
+    return {"schedule": view_utils._format_opt(schedule)}
 
 
-def single(req, schedule):
-    return {"schedule": format_schedule(req, schedule)}
-
-
-def collection(req, schedules):
-    formatted_schedules = [format_schedule(req, m)
+def collection(schedules):
+    formatted_schedules = [view_utils._format_opt(m)
                            for m in schedules]
     return {'schedules': formatted_schedules}

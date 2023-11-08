@@ -1,38 +1,29 @@
 # Copyright 2020 Cloudbase Solutions Srl
 # All Rights Reserved.
 
-import itertools
+from coriolis.api.v1.views import utils as view_utils
 
 
-def _format_resource(req, resource, keys=None):
-    def transform(key, value):
-        if keys and key not in keys:
-            return
-        yield (key, value)
-
-    return dict(itertools.chain.from_iterable(
-        transform(k, v) for k, v in resource.items()))
+def instance_single(instance):
+    return {"instance": view_utils._format_opt(instance)}
 
 
-def instance_single(req, instance):
-    return {"instance": _format_resource(req, instance)}
-
-
-def instances_collection(req, instances):
-    formatted_instances = [_format_resource(req, m)
+def instances_collection(instances):
+    formatted_instances = [view_utils._format_opt(m)
                            for m in instances]
     return {'instances': formatted_instances}
 
 
-def network_single(req, network):
-    return {"network": _format_resource(req, network)}
+def network_single(network):
+    return {"network": view_utils._format_opt(network)}
 
 
-def networks_collection(req, networks):
-    formatted_networks = [_format_resource(req, m) for m in networks]
+def networks_collection(networks):
+    formatted_networks = [view_utils._format_opt(m)
+                          for m in networks]
     return {'networks': formatted_networks}
 
 
-def storage_collection(req, storage):
-    formatted_storages = _format_resource(req, storage)
+def storage_collection(storage):
+    formatted_storages = view_utils._format_opt(storage)
     return {'storage': formatted_storages}
