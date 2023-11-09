@@ -8,8 +8,12 @@ from coriolis.api.v1.views import utils as view_utils
 from coriolis.tests import test_base
 
 
-class EndpointViewTestCase(test_base.CoriolisBaseTestCase):
+class EndpointViewTestCase(test_base.CoriolisApiViewsTestCase):
     """Test suite for the Coriolis api v1 views."""
+
+    def setUp(self):
+        super(EndpointViewTestCase, self).setUp()
+        self._format_fun = endpoint_view._format_endpoint
 
     @mock.patch.object(view_utils, '_format_opt')
     def test_format_endpoint(self, mock__format_opt):
@@ -46,3 +50,11 @@ class EndpointViewTestCase(test_base.CoriolisBaseTestCase):
                 expected_result,
                 result
             )
+
+    def test_single(self):
+        fun = getattr(endpoint_view, 'single')
+        self._single_view_test(fun, 'endpoint')
+
+    def test_collection(self):
+        fun = getattr(endpoint_view, 'collection')
+        self._collection_view_test(fun, 'endpoints')
