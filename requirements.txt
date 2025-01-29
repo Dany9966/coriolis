@@ -13,7 +13,7 @@ oslo.cache
 oslo.concurrency
 oslo.config
 oslo.context>=2.19.1
-oslo.db<=12.3.2
+oslo.db
 oslo.i18n
 oslo.log
 oslo.messaging==12.2.0
