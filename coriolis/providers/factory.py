@@ -1,5 +1,6 @@
 # Copyright 2016 Cloudbase Solutions Srl
 # All Rights Reserved.
+import multiprocessing
 
 from oslo_config import cfg
 
@@ -57,9 +58,9 @@ PROVIDER_TYPE_MAP = {
 }
 
 
-def get_available_providers():
+def _get_available_providers(providers_list):
     providers = {}
-    for provider in CONF.providers:
+    for provider in providers_list:
         cls = utils.load_class(provider)
         for provider_type, provider_class in PROVIDER_TYPE_MAP.items():
             provider_data = providers.get(cls.platform, {})
@@ -72,6 +73,38 @@ def get_available_providers():
             provider_data["types"] = sorted(provider_types)
             providers[cls.platform] = provider_data
     return providers
+
+
+def _launch_providers_discovery_subprocess(pipe, providers_list):
+    try:
+        result = _get_available_providers(providers_list)
+        pipe.send(result)
+    except Exception:
+        pipe.send({"error": utils.get_exception_details()})
+    finally:
+        pipe.close()
+
+
+def get_available_providers():
+    ctx = multiprocessing.get_context("spawn")
+    parent_conn, child_conn = ctx.Pipe()
+    proc = ctx.Process(target=_launch_providers_discovery_subprocess,
+                       args=(child_conn, CONF.providers))
+    proc.start()
+    result = parent_conn.recv()
+    proc.join()
+
+    if not isinstance(result, dict):
+        raise exception.CoriolisException(
+            f"Invalid provider discovery result: {result} of type: "
+            f"{type(result)}")
+
+    if result.get('error', {}):
+        raise exception.CoriolisException(
+            "An error occurred while discovering available providers: "
+            f"{result['error']}")
+
+    return result
 
 
 def get_provider(
