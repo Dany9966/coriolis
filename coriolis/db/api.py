@@ -31,22 +31,22 @@ def get_engine():
     return IMPL.get_engine()
 
 
-def get_session():
-    return IMPL.get_session()
+# def get_session():
+#     return IMPL.get_session()
 
 
-def db_sync(engine, version=None):
-    """Migrate the database to `version` or the most recent version."""
-    return IMPL.db_sync(engine, version=version)
+# def db_sync(engine, version=None):
+#     """Migrate the database to `version` or the most recent version."""
+#     return IMPL.db_sync(engine, version=version)
+#
+#
+# def db_version(engine):
+#     """Display the current database version."""
+#     return IMPL.db_version(engine)
 
 
-def db_version(engine):
-    """Display the current database version."""
-    return IMPL.db_version(engine)
-
-
-def _session(context):
-    return (context and context.session) or get_session()
+# def _session(context):
+#     return (context and context.session) or get_session()
 
 
 def is_user_context(context):
@@ -61,7 +61,7 @@ def is_user_context(context):
 
 
 def _model_query(context, *args):
-    session = _session(context)
+    session = context.session
     return session.query(*args)
 
 
@@ -161,7 +161,7 @@ def get_endpoint(context, endpoint_id):
 def add_endpoint(context, endpoint):
     endpoint.user_id = context.user
     endpoint.project_id = context.project_id
-    _session(context).add(endpoint)
+    context.session.add(endpoint)
 
 
 @enginefacade.writer
@@ -326,7 +326,7 @@ def add_transfer_tasks_execution(context, execution):
                     execution.action.id)).first()[0] or 0
     execution.number = max_number + 1
 
-    _session(context).add(execution)
+    context.session.add(execution)
 
 
 @enginefacade.writer
@@ -416,7 +416,7 @@ def add_transfer_schedule(context, schedule, post_create_callable=None):
 
     if schedule.transfer.project_id != context.project_id:
         raise exception.NotAuthorized()
-    _session(context).add(schedule)
+    context.session.add(schedule)
     if post_create_callable:
         post_create_callable(context, schedule)
 
@@ -501,7 +501,7 @@ def get_endpoint_transfers_count(
 def add_transfer(context, transfer):
     transfer.user_id = context.user
     transfer.project_id = context.project_id
-    _session(context).add(transfer)
+    context.session.add(transfer)
 
 
 @enginefacade.writer
@@ -602,7 +602,7 @@ def add_deployment(context, deployment):
     deployment.user_id = context.user or deployment.transfer.user_id
     deployment.project_id = (
         context.project_id or deployment.transfer.project_id)
-    _session(context).add(deployment)
+    context.session.add(deployment)
 
 
 @enginefacade.writer
@@ -774,7 +774,7 @@ def add_task_event(context, task_id, level, message):
     task_event.task_id = task_id
     task_event.level = level
     task_event.message = message
-    _session(context).add(task_event)
+    context.session.add(task_event)
     return task_event
 
 
@@ -831,7 +831,7 @@ def add_minion_pool_event(context, pool_id, level, message):
     if last_pool_event:
         pool_event.index = last_pool_event.index + 1
 
-    _session(context).add(pool_event)
+    context.session.add(pool_event)
     return pool_event
 
 
@@ -857,7 +857,7 @@ def add_minion_pool_progress_update(
     if last_progress_update:
         pool_progress_update.index = last_progress_update.index + 1
 
-    _session(context).add(pool_progress_update)
+    context.session.add(pool_progress_update)
     return pool_progress_update
 
 
@@ -910,7 +910,7 @@ def add_task_progress_update(
     if last_progress_update:
         task_progress_update.index = last_progress_update.index + 1
 
-    _session(context).add(task_progress_update)
+    context.session.add(task_progress_update)
     return task_progress_update
 
 
@@ -981,7 +981,7 @@ def update_transfer(context, transfer_id, updated_values):
 
 @enginefacade.writer
 def add_region(context, region):
-    _session(context).add(region)
+    context.session.add(region)
 
 
 @enginefacade.reader
@@ -1043,7 +1043,7 @@ def add_endpoint_region_mapping(context, endpoint_region_mapping):
             "('%s') and the endpoint ID ('%s') must both be non-null." % (
                 region_id, endpoint_id))
 
-    _session(context).add(endpoint_region_mapping)
+    context.session.add(endpoint_region_mapping)
 
 
 @enginefacade.reader
@@ -1099,7 +1099,7 @@ def get_mapped_endpoints_for_region(context, region_id):
 
 @enginefacade.writer
 def add_service(context, service):
-    _session(context).add(service)
+    context.session.add(service)
 
 
 @enginefacade.reader
@@ -1248,7 +1248,7 @@ def add_service_region_mapping(context, service_region_mapping):
             "('%s') and the service ID ('%s') must both be non-null." % (
                 region_id, service_id))
 
-    _session(context).add(service_region_mapping)
+    context.session.add(service_region_mapping)
 
 
 @enginefacade.reader
@@ -1310,7 +1310,7 @@ def add_minion_machine(context, minion_machine):
             minion_machine.user_id = pool.user_id
         if not minion_machine.project_id:
             minion_machine.project_id = pool.project_id
-    _session(context).add(minion_machine)
+    context.session.add(minion_machine)
 
 
 @enginefacade.reader
@@ -1403,7 +1403,7 @@ def delete_minion_machine(context, minion_machine_id):
 def add_minion_pool(context, minion_pool):
     minion_pool.user_id = context.user
     minion_pool.project_id = context.project_id
-    _session(context).add(minion_pool)
+    context.session.add(minion_pool)
 
 
 @enginefacade.writer
