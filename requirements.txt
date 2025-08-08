@@ -13,7 +13,8 @@ oslo.cache
 oslo.concurrency
 oslo.config<9.8.0
 oslo.context<6.0.0
-oslo.db<=12.3.2
+# oslo.db<=12.3.2
+git+https://github.com/Dany9966/oslo.db.git@future-tag#egg=oslo.db
 oslo.i18n
 oslo.log
 oslo.messaging==12.2.0
