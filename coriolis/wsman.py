@@ -185,3 +185,13 @@ class WSManConnection(object):
             "[IO.File]::WriteAllBytes('%s', [Convert]::FromBase64String('%s'))"
             % (remote_path, base64.b64encode(content).decode()),
             ignore_stdout=True)
+
+    def get_system_drive(self):
+        return self.exec_ps_command("$env:SystemDrive")
+
+    def get_fs_roots(self, fail_if_empty=False):
+        drives = self.exec_ps_command(
+            "(get-psdrive -PSProvider FileSystem).Root").split(self.EOL)
+        if len(drives) == 0 and fail_if_empty:
+            raise exception.CoriolisException("No filesystems found")
+        return drives

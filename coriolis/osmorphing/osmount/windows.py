@@ -166,16 +166,6 @@ class WindowsMountTools(base.BaseOSMountTools):
                     f"Failed setting disk {disk_num} RW flag. Error was: "
                     f"{utils.get_exception_details()}")
 
-    def _get_system_drive(self):
-        return self._conn.exec_ps_command("$env:SystemDrive")
-
-    def _get_fs_roots(self, fail_if_empty=False):
-        drives = self._conn.exec_ps_command(
-            "(get-psdrive -PSProvider FileSystem).Root").split(self._conn.EOL)
-        if len(drives) == 0 and fail_if_empty:
-            raise exception.CoriolisException("No filesystems found")
-        return drives
-
     def _bring_nonboot_disks_offline(self, disk_nums=None):
         if disk_nums is None:
             disk_nums = self._conn.exec_ps_command(
@@ -197,9 +187,11 @@ class WindowsMountTools(base.BaseOSMountTools):
     def _set_volumes_drive_letter(self):
         disk_nums = []
         partitions = self._conn.exec_ps_command(
-            'Get-Partition | Where-Object { $_.Type -eq "Basic" -and '
+            'Get-Partition | Where-Object { $_.Type -in "Basic","System" -and '
             '$_.NoDefaultDriveLetter -eq $True } | Select-Object -Property '
             'DiskNumber,PartitionNumber')
+        boot_disks = self._conn.exec_ps_command(
+            '(Get-Disk | Where-Object { $_.IsBoot -eq $True }).Number')
         if partitions:
             LOG.debug(f"Partitions without default drive letter: {partitions}")
             for part in partitions.splitlines():
@@ -211,6 +203,10 @@ class WindowsMountTools(base.BaseOSMountTools):
                 if not disk_num.isnumeric() or not part_num.isnumeric():
                     LOG.debug(f"Skipping partition line: {part_line}")
                     continue
+                if disk_num in boot_disks.splitlines():
+                    LOG.debug(f"Skipping partition of boot disk: {disk_num}")
+                    continue
+
                 try:
                     self._conn.exec_ps_command(
                         f'Set-Partition -NoDefaultDriveLetter $False '
@@ -223,13 +219,42 @@ class WindowsMountTools(base.BaseOSMountTools):
                         f"Error was: {utils.get_exception_details()}")
             self._rebring_disks_online(disk_nums=disk_nums)
 
+    def _unset_system_partition_letters(self):
+        partitions = self._conn.exec_ps_command(
+            'Get-Partition | Where-Object { $_.Type -eq "System" } | '
+            'Select-Object -Property DiskNumber,PartitionNumber')
+        if partitions:
+            LOG.debug(
+                f"System partitions that need letter revert: {partitions}")
+            for part in partitions.splitlines():
+                part_line = part.split()
+                if not len(part_line) > 1:
+                    LOG.warning(f"Skipping partition line: {part_line}")
+                    continue
+
+                disk_num, part_num = part_line[:2]
+                if not disk_num.isnumeric() or not part_num.isnumeric():
+                    LOG.warning(f"Skipping partition line: {part_line}")
+                    continue
+
+                try:
+                    self._conn.exec_ps_command(
+                        f'Set-Partition -NoDefaultDriveLetter $True '
+                        f'-DiskNumber {disk_num} -PartitionNumber {part_num}')
+                except exception.CoriolisException:
+                    LOG.warning(
+                        f"Failed unsetting default drive letter on system "
+                        f"partition number '{part_num}' of disk number "
+                        f"'{disk_num}'. Error was: "
+                        f"{utils.get_exception_details()}")
+
     def mount_os(self):
         self._set_basic_disks_rw_mode()
         self._bring_disks_online()
         self._set_volumes_drive_letter()
-        fs_roots = utils.retry_on_error(sleep_seconds=5)(self._get_fs_roots)(
-            fail_if_empty=True)
-        system_drive = self._get_system_drive()
+        fs_roots = utils.retry_on_error(sleep_seconds=5)(
+            self._conn.get_fs_roots)(fail_if_empty=True)
+        system_drive = self._conn.get_system_drive()
 
         for fs_root in [r for r in fs_roots if not r[:-1] == system_drive]:
             if self._conn.test_path("%sWindows\\System32" % fs_root):
@@ -238,4 +263,5 @@ class WindowsMountTools(base.BaseOSMountTools):
         raise exception.OperatingSystemNotFound("root partition not found")
 
     def dismount_os(self, root_drive):
+        self._unset_system_partition_letters()
         self._bring_nonboot_disks_offline()

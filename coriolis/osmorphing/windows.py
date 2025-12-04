@@ -658,6 +658,37 @@ class BaseWindowsMorphingTools(base.BaseOSMorphingTools):
         finally:
             self._unload_registry_hive("HKLM\\%s" % key_name)
 
+    def _rebuild_bcd_boot(self):
+        FW_BCD_PATH_MAP = {
+            constants.FIRMWARE_TYPE_BIOS: "%sBoot\\BCD",
+            constants.FIRMWARE_TYPE_EFI: "%sEFI\\Microsoft\\Boot\\BCD",
+        }
+        fw_type = self._osmorphing_parameters.get(
+            'firmware_type', constants.FIRMWARE_TYPE_BIOS)
+        bcd_path_template = FW_BCD_PATH_MAP.get(fw_type)
+        fs_roots = self._conn.get_fs_roots()
+        system_drive = self._conn.get_system_drive()
+
+        bcd_dir_path = None
+        for fs_root in [r for r in fs_roots if not r[:-1] == system_drive]:
+            if self._conn.test_path(bcd_path_template % fs_root):
+                bcd_dir_path = bcd_path_template % fs_root
+                break
+
+        if not bcd_dir_path:
+            LOG.warning("No BCD location detected. Skipping!")
+            return
+
+        LOG.debug(f"Found location of BCD: {bcd_dir_path}")
+
+        self._conn.exec_ps_command(
+            f'Copy-Item "{bcd_dir_path}" "{bcd_dir_path}.bak" -Force')
+        self._conn.exec_ps_command(f'Remove-Item "{bcd_dir_path}" -Force')
+
+        self._conn.exec_ps_command(
+            f'bcdboot "{self._os_root_dir}Windows" /s "{bcd_dir_path}" '
+            f'/f {fw_type}')
+
     def get_packages(self):
         return [], []
 
@@ -671,7 +702,14 @@ class BaseWindowsMorphingTools(base.BaseOSMorphingTools):
         pass
 
     def post_packages_install(self, package_names):
-        pass
+        try:
+            self._rebuild_bcd_boot()
+        except Exception:
+            self._event_manager.progress_update(
+                "WARNING: BCD rebuild failed. Migrated instance might still "
+                "boot so this error will be ignored. Check logs for more "
+                "information regarding this error.")
+            LOG.warning(utils.get_exception_details())
 
     def pre_packages_uninstall(self, package_names):
         pass
