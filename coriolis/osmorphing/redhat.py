@@ -65,7 +65,8 @@ class BaseRedHatMorphingTools(base.BaseLinuxOSMorphingTools):
         self._exec_cmd_chroot(cmd % "net.ifnames=0 biosdevname=0")
 
     def get_update_grub2_command(self):
-        location = self._get_grub2_cfg_location()
+        # location = self._get_grub2_cfg_location()
+        location = "/boot/grub2/grub.cfg"
         return "grub2-mkconfig -o %s" % location
 
     def _get_grub2_cfg_location(self):
