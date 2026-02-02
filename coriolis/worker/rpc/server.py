@@ -7,13 +7,12 @@ import os
 import shutil
 import signal
 import sys
-import time
+import threading
 
 import eventlet
 from oslo_config import cfg
 from oslo_log import log as logging
 import psutil
-from six.moves import queue
 
 from coriolis.conductor.rpc import client as rpc_conductor_client
 from coriolis.conductor.rpc import utils as conductor_rpc_utils
@@ -133,17 +132,23 @@ class WorkerServerEndpoint(object):
             self._rpc_conductor_client.confirm_task_cancellation(
                 ctxt, task_id, msg)
 
-    def _handle_mp_log_events(self, p, mp_log_q):
-        while True:
-            try:
-                record = mp_log_q.get(timeout=1)
-                if record is None:
-                    break
-                logger = logging.getLogger(record.name).logger
-                logger.handle(record)
-            except queue.Empty:
-                if not p.is_alive():
-                    break
+    def _wait_for_process_result(self, p, mp_q, result_holder, done_event):
+        try:
+            while True:
+                if not multiprocessing.connection.wait([mp_q._reader],
+                                                       timeout=1):
+                    if not p.is_alive():
+                        result_holder["result"] = None
+                        return
+                    continue
+
+                try:
+                    result_holder["result"] = mp_q.get()
+                except (EOFError, OSError):
+                    result_holder["result"] = None
+                return
+        finally:
+            done_event.set()
 
     def _get_custom_ld_path(self, original_ld_path, extra_library_paths):
         if not isinstance(extra_library_paths, list):
@@ -196,35 +201,53 @@ class WorkerServerEndpoint(object):
             ctxt, origin, destination, event_handler)
 
     def _wait_for_process(self, p, mp_q):
-        result = None
         while True:
-            if not result:
-                try:
-                    result = mp_q.get(timeout=1)
-                except queue.Empty:
-                    if not p.is_alive():
-                        break
-            if not p.is_alive():
-                if not result:
-                    try:
-                        result = mp_q.get(False)
-                    except BaseException:
-                        pass
+            if not multiprocessing.connection.wait([mp_q._reader],
+                                                   timeout=1):
+                if not p.is_alive():
+                    break
+                continue
+
+            try:
+                result = mp_q.get()
+            except (EOFError, OSError):
+                return None
+
+            return result
+
+    def _handle_mp_log_events(self, p, mp_log_q):
+        while True:
+            if not multiprocessing.connection.wait([mp_log_q._reader],
+                                                   timeout=1):
+                if not p.is_alive():
+                    break
+                continue
+
+            try:
+                record = mp_log_q.get()
+            except (EOFError, OSError):
                 break
-            time.sleep(.2)
-        return result
+
+            if record is None:
+                break
+
+            logging.getLogger(record.name).handle(record)
 
     def _exec_task_process(
             self, ctxt, task_id, task_type, origin, destination, instance,
             task_info, report_to_conductor=True):
+        LOG.debug(f"{task_id}: Executing mp spawn")
         mp_ctx = multiprocessing.get_context('spawn')
-        mp_q = mp_ctx.Queue()
-        mp_log_q = mp_ctx.Queue()
+        LOG.debug(f"{task_id}: Executing creating queues")
+        mp_q = mp_ctx.SimpleQueue()
+        mp_log_q = mp_ctx.SimpleQueue()
+        LOG.debug(f"{task_id}: Creating task process")
         p = mp_ctx.Process(
             target=_task_process,
             args=(ctxt, task_id, task_type, origin, destination, instance,
                   task_info, mp_q, mp_log_q))
 
+        LOG.debug(f"{task_id} Getting extra lib paths")
         extra_library_paths = self._get_extra_library_paths_for_providers(
             ctxt, task_id, task_type, origin, destination)
 
@@ -264,19 +287,34 @@ class WorkerServerEndpoint(object):
                     "Task '%s' was already in cancelling status." % task_id)
             raise
 
-        evt = eventlet.spawn(self._wait_for_process, p, mp_q)
-        eventlet.spawn(self._handle_mp_log_events, p, mp_log_q)
+        log_thread = threading.Thread(
+            target=self._handle_mp_log_events,
+            args=(p, mp_log_q),
+            daemon=True)
+        log_thread.start()
+        result_holder = {}
+        result_done = threading.Event()
+        result_thread = threading.Thread(
+            target=self._wait_for_process_result,
+            args=(p, mp_q, result_holder, result_done),
+            daemon=True)
+        result_thread.start()
 
-        result = evt.wait()
-        p.join()
+        eventlet.tpool.execute(p.join)
+        eventlet.tpool.execute(result_done.wait, 5)
+        eventlet.tpool.execute(result_thread.join, 5)
+        eventlet.tpool.execute(log_thread.join, 5)
 
+        mp_q.close()
+        mp_log_q.close()
+
+        result = result_holder.get("result")
         if result is None:
             LOG.debug(
-                "No result from process (%s) running task '%s'. "
-                "Presuming task was cancelled.",
-                p.pid, task_id)
-            raise exception.TaskProcessCanceledException(
-                "Task was canceled.")
+                "No result from process (%s) running task '%s' (exit code %s).",
+                p.pid, task_id, p.exitcode)
+            raise exception.TaskProcessException(
+                "Task process exited without reporting a result.")
 
         if isinstance(result, str):
             LOG.debug(
