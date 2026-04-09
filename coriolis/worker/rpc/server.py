@@ -214,16 +214,59 @@ class WorkerServerEndpoint(object):
             time.sleep(.2)
         return result
 
+    def _get_parent_process_diagnostics(self):
+        proc = psutil.Process(os.getpid())
+        diagnostics = {
+            "pid": proc.pid,
+            "rss": proc.memory_info().rss,
+        }
+        try:
+            diagnostics["fds"] = proc.num_fds()
+        except Exception:
+            diagnostics["fds"] = "unknown"
+        return diagnostics
+
+    def _log_parent_process_diagnostics(
+            self, message, task_id, diagnostics=None, delta=None):
+        diagnostics = diagnostics or self._get_parent_process_diagnostics()
+        log_message = (
+            "%s for task '%s'. Parent PID=%s RSS=%s bytes FDs=%s" % (
+                message, task_id, diagnostics["pid"], diagnostics["rss"],
+                diagnostics["fds"]))
+        if delta is not None:
+            log_message += (
+                " (delta: RSS=%s bytes FDs=%s)" % (
+                    delta.get("rss"), delta.get("fds")))
+        LOG.debug(log_message)
+
     def _exec_task_process(
             self, ctxt, task_id, task_type, origin, destination, instance,
             task_info, report_to_conductor=True):
+        initial_diag = self._get_parent_process_diagnostics()
+        self._log_parent_process_diagnostics(
+            "Entering task process execution", task_id,
+            diagnostics=initial_diag)
+
         mp_ctx = multiprocessing.get_context('spawn')
+        LOG.debug(
+            "Task '%s': created multiprocessing 'spawn' context on parent "
+            "PID %s", task_id, initial_diag["pid"])
+
         mp_q = mp_ctx.Queue()
+        self._log_parent_process_diagnostics(
+            "Created result multiprocessing queue", task_id)
+
         mp_log_q = mp_ctx.Queue()
+        self._log_parent_process_diagnostics(
+            "Created logging multiprocessing queue", task_id)
+
         p = mp_ctx.Process(
             target=_task_process,
             args=(ctxt, task_id, task_type, origin, destination, instance,
                   task_info, mp_q, mp_log_q))
+        LOG.debug(
+            "Task '%s': instantiated multiprocessing.Process object on "
+            "parent PID %s", task_id, initial_diag["pid"])
 
         extra_library_paths = self._get_extra_library_paths_for_providers(
             ctxt, task_id, task_type, origin, destination)
@@ -267,8 +310,39 @@ class WorkerServerEndpoint(object):
         evt = eventlet.spawn(self._wait_for_process, p, mp_q)
         eventlet.spawn(self._handle_mp_log_events, p, mp_log_q)
 
-        result = evt.wait()
-        p.join()
+        try:
+            result = evt.wait()
+            p.join()
+        finally:
+            for mp_queue, queue_name in [
+                    (mp_q, "result"), (mp_log_q, "logging")]:
+                try:
+                    mp_queue.close()
+                except Exception:
+                    LOG.debug(
+                        "Task '%s': failed to close %s multiprocessing queue. "
+                        "Error was: %s", task_id, queue_name,
+                        utils.get_exception_details())
+                try:
+                    mp_queue.join_thread()
+                except Exception:
+                    LOG.debug(
+                        "Task '%s': failed to join feeder thread for %s "
+                        "multiprocessing queue. Error was: %s",
+                        task_id, queue_name, utils.get_exception_details())
+
+            final_diag = self._get_parent_process_diagnostics()
+            delta = {
+                "rss": final_diag["rss"] - initial_diag["rss"],
+                "fds": (
+                    final_diag["fds"] - initial_diag["fds"]
+                    if isinstance(final_diag["fds"], int) and
+                    isinstance(initial_diag["fds"], int)
+                    else "unknown")
+            }
+            self._log_parent_process_diagnostics(
+                "Finished task process execution", task_id,
+                diagnostics=final_diag, delta=delta)
 
         if result is None:
             LOG.debug(
