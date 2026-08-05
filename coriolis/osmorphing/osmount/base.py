@@ -128,6 +128,30 @@ class BaseSSHOSMountTools(BaseOSMountTools):
             raise exception.OSMorphingSSHOperationTimeout(
                 cmd=cmd, timeout=timeout) from ex
 
+    def _exec_sudo_env_cmd(self, cmd, timeout=None):
+        """
+        Runs a sudo command that also passes all the environment variables to
+        the underlying command. Replaces sudo's -E flag, which is not currently
+        supported in all shipped sudo variants (like sudo-rs).
+        """
+        if not timeout:
+            timeout = self._osmount_operation_timeout
+        env_str = " ".join([f"{k}={v}" for k,v in self._environment.items()])
+        env_cmd = f"sudo {env_str} {cmd}"
+        try:
+            return utils.exec_ssh_cmd(
+                self._ssh,
+                env_cmd,
+                environment=self._environment,
+                get_pty=False,
+                timeout=timeout,
+            )
+        except exception.MinionMachineCommandTimeout as ex:
+            raise exception.OSMorphingSSHOperationTimeout(
+                cmd=env_cmd,
+                timeout=timeout,
+            ) from ex
+
     def get_connection(self):
         return self._ssh
 

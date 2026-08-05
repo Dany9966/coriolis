@@ -241,10 +241,10 @@ class BaseDebianMorphingTools(base.BaseLinuxOSMorphingTools):
                 "dpkg --configure --force-confold -a")
             self._exec_cmd_chroot(deb_reconfigure_cmd)
 
+            self._environment['DEBIAN_FRONTEND'] = 'noninteractive'
             apt_get_cmd = (
-                '/bin/bash -c "DEBIAN_FRONTEND=noninteractive '
                 'apt-get install %s -y '
-                '-o Dpkg::Options::=\'--force-confdef\'"' % (
+                '-o Dpkg::Options::="--force-confdef"' % (
                     " ".join(package_names)))
             self._exec_cmd_chroot(apt_get_cmd)
         except Exception as err:

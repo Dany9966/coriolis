@@ -390,9 +390,16 @@ def exec_ssh_cmd(
 
 def exec_ssh_cmd_chroot(ssh, chroot_dir, cmd, environment=None, get_pty=False,
                         timeout=None):
-    return exec_ssh_cmd(ssh, "sudo -E chroot %s %s" % (chroot_dir, cmd),
-                        environment=environment, get_pty=get_pty,
-                        timeout=timeout)
+    if environment is None:
+        environment = {}
+    env_str = " ".join([f"{k}={v}" for k,v in environment.items()])
+    return exec_ssh_cmd(
+        ssh,
+        f"sudo chroot {chroot_dir} /bin/bash -c '{env_str} {cmd}'",
+        environment=environment,
+        get_pty=get_pty,
+        timeout=timeout,
+    )
 
 
 def check_fs(ssh, fs_type, dev_path):
